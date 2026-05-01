@@ -9,6 +9,17 @@ function getSpeechRecognition(): SR | undefined {
   return w.webkitSpeechRecognition
 }
 
+function getBestMimeType(): string {
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+    'audio/mp4',
+  ]
+  return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
+}
+
 export function useAudioRecorder() {
   const [state, setState] = useState<RecorderState>('idle')
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -23,7 +34,8 @@ export function useAudioRecorder() {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const finalRef = useRef('')  // accumulates final (committed) transcript segments
+  const finalRef = useRef('')
+  const mimeTypeRef = useRef('')
 
   const start = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -46,8 +58,11 @@ export function useAudioRecorder() {
     }
     tick()
 
-    // MediaRecorder
-    const recorder = new MediaRecorder(stream)
+    // Detect the best supported audio MIME type for this browser
+    const mimeType = getBestMimeType()
+    mimeTypeRef.current = mimeType
+
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
     recorderRef.current = recorder
     chunksRef.current = []
 
@@ -55,7 +70,8 @@ export function useAudioRecorder() {
       if (e.data.size > 0) chunksRef.current.push(e.data)
     }
     recorder.onstop = () => {
-      setAudioBlob(new Blob(chunksRef.current, { type: 'audio/webm' }))
+      const type = mimeTypeRef.current || 'audio/webm'
+      setAudioBlob(new Blob(chunksRef.current, { type }))
       setDurationSeconds(Math.round((Date.now() - startTimeRef.current) / 1000))
       stream.getTracks().forEach((t) => t.stop())
       cancelAnimationFrame(animFrameRef.current!)
@@ -87,7 +103,6 @@ export function useAudioRecorder() {
       }
 
       recognition.onend = () => {
-        // Commit whatever was left as final
         setTranscript(finalRef.current.trim())
       }
 
