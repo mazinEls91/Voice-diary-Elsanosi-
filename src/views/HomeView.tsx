@@ -29,6 +29,7 @@ export default function HomeView({ onOpenEntry }: Props) {
       id,
       title: title.trim() || 'Untitled entry',
       audioBlob: recorder.audioBlob,
+      transcript: recorder.transcript || undefined,
       durationSeconds: recorder.durationSeconds,
       createdAt: new Date().toISOString(),
       tags: [],
@@ -38,10 +39,11 @@ export default function HomeView({ onOpenEntry }: Props) {
     recorder.reset()
     setSaving(false)
 
-    // Auto-tag + summarise in background
+    // Auto-tag using transcript when available, otherwise fall back to title
     const key = localStorage.getItem('anthropic_api_key')
     if (key) {
-      autoTagEntry(key, entry.title)
+      const context = entry.transcript || entry.title
+      autoTagEntry(key, context)
         .then((result) => {
           updateEntry(id, {
             category: result.category,
@@ -81,6 +83,13 @@ export default function HomeView({ onOpenEntry }: Props) {
           onStop={recorder.stop}
         />
 
+        {/* Live transcript preview during recording */}
+        {recorder.state === 'recording' && recorder.transcript && (
+          <div className={styles.liveTranscript}>
+            <span className={styles.liveTranscriptText}>{recorder.transcript}</span>
+          </div>
+        )}
+
         {recorder.state === 'stopped' && recorder.audioBlob && (
           <div className={styles.saveForm}>
             <input
@@ -92,6 +101,14 @@ export default function HomeView({ onOpenEntry }: Props) {
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               autoFocus
             />
+
+            {recorder.transcript && (
+              <div className={styles.transcriptPreview}>
+                <span className={styles.transcriptLabel}>Transcript</span>
+                <p className={styles.transcriptText}>{recorder.transcript}</p>
+              </div>
+            )}
+
             <div className={styles.saveActions}>
               <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving…' : 'Save Entry'}

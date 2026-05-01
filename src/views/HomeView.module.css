@@ -39,8 +39,32 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  gap: 1.5rem;
   padding: 2rem 0 3rem;
+}
+
+/* Live transcript while recording */
+.liveTranscript {
+  width: 100%;
+  max-height: 80px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
+  animation: fadeUp 0.2s ease;
+}
+
+.liveTranscriptText {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .saveForm {
@@ -49,11 +73,6 @@
   flex-direction: column;
   gap: 0.75rem;
   animation: fadeUp 0.25s ease;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .titleInput {
@@ -67,9 +86,39 @@
   outline: none;
   transition: border-color 0.15s;
   box-sizing: border-box;
+  font-family: inherit;
 }
 .titleInput::placeholder { color: var(--text-muted); }
 .titleInput:focus { border-color: var(--accent); }
+
+.transcriptPreview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.transcriptLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.transcriptText {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 .saveActions {
   display: flex;
@@ -87,6 +136,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;
+  font-family: inherit;
 }
 .saveBtn:hover:not(:disabled) { opacity: 0.88; }
 .saveBtn:disabled { opacity: 0.5; cursor: default; }
@@ -100,6 +150,7 @@
   font-size: 0.95rem;
   cursor: pointer;
   transition: color 0.15s;
+  font-family: inherit;
 }
 .discardBtn:hover { color: var(--text); }
 
@@ -130,6 +181,7 @@
   outline: none;
   font-size: 0.9rem;
   color: var(--text);
+  font-family: inherit;
 }
 .searchInput::placeholder { color: var(--text-muted); }
 

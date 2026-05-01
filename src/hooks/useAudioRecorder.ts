@@ -1,11 +1,20 @@
 import { useState, useRef, useCallback } from 'react'
 import type { RecorderState } from '../types'
 
+type SR = new () => SpeechRecognition
+
+function getSpeechRecognition(): SR | undefined {
+  if ('SpeechRecognition' in window) return window.SpeechRecognition as SR
+  const w = window as unknown as { webkitSpeechRecognition?: SR }
+  return w.webkitSpeechRecognition
+}
+
 export function useAudioRecorder() {
   const [state, setState] = useState<RecorderState>('idle')
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [durationSeconds, setDurationSeconds] = useState(0)
   const [levels, setLevels] = useState<number[]>(new Array(24).fill(0))
+  const [transcript, setTranscript] = useState('')
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
@@ -13,11 +22,13 @@ export function useAudioRecorder() {
   const animFrameRef = useRef<number>()
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const finalRef = useRef('')  // accumulates final (committed) transcript segments
 
   const start = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
-    // Wire up analyser for waveform visualisation
+    // Waveform analyser
     const ctx = new AudioContext()
     audioCtxRef.current = ctx
     const source = ctx.createMediaStreamSource(stream)
@@ -35,6 +46,7 @@ export function useAudioRecorder() {
     }
     tick()
 
+    // MediaRecorder
     const recorder = new MediaRecorder(stream)
     recorderRef.current = recorder
     chunksRef.current = []
@@ -51,12 +63,49 @@ export function useAudioRecorder() {
       ctx.close()
     }
 
+    // Web Speech API — runs in parallel, builds transcript in real time
+    finalRef.current = ''
+    setTranscript('')
+    const SpeechRecognitionAPI = getSpeechRecognition()
+
+    if (SpeechRecognitionAPI) {
+      const recognition = new SpeechRecognitionAPI()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onresult = (event) => {
+        let interim = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalRef.current += event.results[i][0].transcript + ' '
+          } else {
+            interim += event.results[i][0].transcript
+          }
+        }
+        setTranscript(finalRef.current + interim)
+      }
+
+      recognition.onend = () => {
+        // Commit whatever was left as final
+        setTranscript(finalRef.current.trim())
+      }
+
+      recognition.onerror = (event) => {
+        if (event.error !== 'no-speech') console.warn('Speech recognition:', event.error)
+      }
+
+      recognition.start()
+      recognitionRef.current = recognition
+    }
+
     startTimeRef.current = Date.now()
     recorder.start()
     setState('recording')
   }, [])
 
   const stop = useCallback(() => {
+    recognitionRef.current?.stop()
     recorderRef.current?.stop()
     setState('stopped')
   }, [])
@@ -64,8 +113,11 @@ export function useAudioRecorder() {
   const reset = useCallback(() => {
     setAudioBlob(null)
     setDurationSeconds(0)
+    setTranscript('')
+    finalRef.current = ''
+    recognitionRef.current = null
     setState('idle')
   }, [])
 
-  return { state, audioBlob, durationSeconds, levels, start, stop, reset }
+  return { state, audioBlob, durationSeconds, levels, transcript, start, stop, reset }
 }
