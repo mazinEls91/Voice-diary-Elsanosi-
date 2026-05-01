@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { getEntry } from '../db'
 import { useAudioPlayer } from '../hooks/useAudioPlayer'
 import AudioPlayer from '../components/AudioPlayer'
-import BrainstormChat from '../components/BrainstormChat'
-import type { DiaryEntry } from '../types'
+import PerspectiveMode from '../components/PerspectiveMode'
+import type { DiaryEntry, EntryCategory } from '../types'
 import styles from './EntryView.module.css'
 
 interface Props {
@@ -11,9 +11,18 @@ interface Props {
   onBack: () => void
 }
 
+const CATEGORY_COLORS: Record<EntryCategory, string> = {
+  idea: '#818cf8',
+  reminder: '#fbbf24',
+  reflection: '#a78bfa',
+  rant: '#f87171',
+  plan: '#34d399',
+  note: '#94a3b8',
+}
+
 export default function EntryView({ entryId, onBack }: Props) {
   const [entry, setEntry] = useState<DiaryEntry | null>(null)
-  const [showBrainstorm, setShowBrainstorm] = useState(false)
+  const [showPerspective, setShowPerspective] = useState(false)
   const player = useAudioPlayer(entry?.audioBlob ?? null)
 
   useEffect(() => {
@@ -37,26 +46,41 @@ export default function EntryView({ entryId, onBack }: Props) {
       <div className={styles.content}>
         <div className={styles.meta}>
           <span className={styles.date}>{date}</span>
-          <span className={styles.duration}>{formatDuration(entry.durationSeconds)}</span>
+          <div className={styles.metaRight}>
+            {entry.category && (
+              <span
+                className={styles.categoryBadge}
+                style={{ color: CATEGORY_COLORS[entry.category], borderColor: CATEGORY_COLORS[entry.category] + '40' }}
+              >
+                {entry.category}
+              </span>
+            )}
+            <span className={styles.duration}>{formatDuration(entry.durationSeconds)}</span>
+          </div>
         </div>
+
         <h1 className={styles.title}>{entry.title}</h1>
+
+        {entry.summary && (
+          <p className={styles.summary}>{entry.summary}</p>
+        )}
 
         <AudioPlayer player={player} />
 
         {entry.transcript && (
-          <div className={styles.transcript}>
+          <div className={styles.section}>
             <h2 className={styles.sectionLabel}>Transcript</h2>
-            <p className={styles.transcriptText}>{entry.transcript}</p>
+            <p className={styles.sectionText}>{entry.transcript}</p>
           </div>
         )}
 
-        {!showBrainstorm ? (
-          <button className={styles.brainstormBtn} onClick={() => setShowBrainstorm(true)}>
-            <BrainIcon />
-            Brainstorm with AI
+        {!showPerspective ? (
+          <button className={styles.perspectiveBtn} onClick={() => setShowPerspective(true)}>
+            <PerspectiveIcon />
+            Perspective Mode
           </button>
         ) : (
-          <BrainstormChat entry={entry} />
+          <PerspectiveMode entry={entry} />
         )}
       </div>
     </div>
@@ -77,11 +101,10 @@ function BackIcon() {
   )
 }
 
-function BrainIcon() {
+function PerspectiveIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-      <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
 }

@@ -3,10 +3,14 @@ export interface DiaryEntry {
   title: string
   audioBlob: Blob
   transcript?: string
+  summary?: string
+  category?: EntryCategory
   durationSeconds: number
   createdAt: string
   tags: string[]
 }
+
+export type EntryCategory = 'idea' | 'reminder' | 'reflection' | 'rant' | 'plan' | 'note'
 
 export type RecorderState = 'idle' | 'recording' | 'stopped'
 
@@ -18,3 +22,7 @@ export interface BrainstormMessage {
   content: string
   createdAt: string
 }
+
+export type PerspectivePersonality = 'listener' | 'comfort' | 'reality-check' | 'strategist' | 'challenger'
+
+export type PerspectiveIntensity = 'soft' | 'direct' | 'tough'

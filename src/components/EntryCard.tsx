@@ -1,10 +1,19 @@
-import type { DiaryEntry } from '../types'
+import type { DiaryEntry, EntryCategory } from '../types'
 import styles from './EntryCard.module.css'
 
 interface Props {
   entry: DiaryEntry
   onClick: () => void
   onDelete: () => void
+}
+
+const CATEGORY_LABELS: Record<EntryCategory, string> = {
+  idea: 'Idea',
+  reminder: 'Reminder',
+  reflection: 'Reflection',
+  rant: 'Rant',
+  plan: 'Plan',
+  note: 'Note',
 }
 
 export default function EntryCard({ entry, onClick, onDelete }: Props) {
@@ -17,21 +26,34 @@ export default function EntryCard({ entry, onClick, onDelete }: Props) {
   }
 
   return (
-    <article className={styles.card} onClick={onClick} role="button" tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}>
+    <article
+      className={styles.card}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+    >
       <div className={styles.top}>
         <div className={styles.left}>
           <span className={styles.date}>{date}</span>
           <span className={styles.duration}>{duration}</span>
+          {entry.category && (
+            <span className={`${styles.badge} ${styles[entry.category]}`}>
+              {CATEGORY_LABELS[entry.category]}
+            </span>
+          )}
         </div>
         <button className={styles.deleteBtn} onClick={handleDelete} aria-label="Delete entry">
           <TrashIcon />
         </button>
       </div>
+
       <h3 className={styles.title}>{entry.title}</h3>
-      {entry.transcript && (
-        <p className={styles.preview}>{entry.transcript}</p>
+
+      {(entry.summary || entry.transcript) && (
+        <p className={styles.preview}>{entry.summary || entry.transcript}</p>
       )}
+
       <div className={styles.footer}>
         <PlayIcon />
         <span>Tap to open</span>

@@ -46,6 +46,23 @@
 }
 
 .date { font-size: 0.85rem; color: var(--text-muted); }
+
+.metaRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.categoryBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
 .duration {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -63,6 +80,21 @@
   letter-spacing: -0.02em;
 }
 
+.summary {
+  margin: -0.75rem 0 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
 .sectionLabel {
   font-size: 0.72rem;
   font-weight: 600;
@@ -72,21 +104,14 @@
   margin: 0 0 0.75rem;
 }
 
-.transcript {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-}
-
-.transcriptText {
+.sectionText {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.75;
   color: var(--text-secondary);
 }
 
-.brainstormBtn {
+.perspectiveBtn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,4 +127,4 @@
   cursor: pointer;
   transition: opacity 0.15s;
 }
-.brainstormBtn:hover { opacity: 0.9; }
+.perspectiveBtn:hover { opacity: 0.9; }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useEntries } from '../hooks/useEntries'
+import { autoTagEntry } from '../services/autoTag'
 import RecordButton from '../components/RecordButton'
 import EntryCard from '../components/EntryCard'
 import SettingsPanel from '../components/SettingsPanel'
@@ -13,16 +14,19 @@ interface Props {
 
 export default function HomeView({ onOpenEntry }: Props) {
   const recorder = useAudioRecorder()
-  const { entries, loading, add, remove } = useEntries()
+  const { entries, loading, add, remove, updateEntry } = useEntries()
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [search, setSearch] = useState('')
 
   async function handleSave() {
     if (!recorder.audioBlob) return
     setSaving(true)
+
+    const id = crypto.randomUUID()
     const entry: DiaryEntry = {
-      id: crypto.randomUUID(),
+      id,
       title: title.trim() || 'Untitled entry',
       audioBlob: recorder.audioBlob,
       durationSeconds: recorder.durationSeconds,
@@ -33,7 +37,31 @@ export default function HomeView({ onOpenEntry }: Props) {
     setTitle('')
     recorder.reset()
     setSaving(false)
+
+    // Auto-tag + summarise in background
+    const key = localStorage.getItem('anthropic_api_key')
+    if (key) {
+      autoTagEntry(key, entry.title)
+        .then((result) => {
+          updateEntry(id, {
+            category: result.category,
+            summary: result.summary || undefined,
+            ...(entry.title === 'Untitled entry' && result.suggestedTitle
+              ? { title: result.suggestedTitle }
+              : {}),
+          })
+        })
+        .catch(() => {})
+    }
   }
+
+  const filtered = search.trim()
+    ? entries.filter((e) =>
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.transcript?.toLowerCase().includes(search.toLowerCase()) ||
+        e.summary?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : entries
 
   return (
     <div className={styles.page}>
@@ -58,7 +86,7 @@ export default function HomeView({ onOpenEntry }: Props) {
             <input
               className={styles.titleInput}
               type="text"
-              placeholder="Name this entry…"
+              placeholder="Name this entry… (leave blank for AI title)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
@@ -75,14 +103,35 @@ export default function HomeView({ onOpenEntry }: Props) {
       </section>
 
       <section className={styles.listSection}>
+        {entries.length > 0 && (
+          <div className={styles.searchRow}>
+            <SearchIcon />
+            <input
+              className={styles.searchInput}
+              type="text"
+              placeholder="Search your entries…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className={styles.clearSearch} onClick={() => setSearch('')}>×</button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <p className={styles.hint}>Loading…</p>
         ) : entries.length === 0 ? (
           <p className={styles.hint}>Your entries will appear here.</p>
+        ) : filtered.length === 0 ? (
+          <p className={styles.hint}>No entries match “{search}”</p>
         ) : (
           <>
-            <h2 className={styles.listHeading}>Entries</h2>
-            {entries.map((e) => (
+            <div className={styles.listMeta}>
+              <h2 className={styles.listHeading}>Entries</h2>
+              <span className={styles.count}>{filtered.length}</span>
+            </div>
+            {filtered.map((e) => (
               <EntryCard
                 key={e.id}
                 entry={e}
@@ -104,6 +153,15 @@ function SettingsIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   )
 }

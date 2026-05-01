@@ -1,23 +1,47 @@
 # Voice Diary — Elsanosi
 
-A personal audio diary app for capturing thoughts, epiphanies, and reflections.
+> Never lose an important thought again.
+
+A personal audio memory system — part voice diary, part AI thought companion, part searchable second brain.
 
 ---
 
 ## Current Phase: Web Prototype
 
-Building and designing the core UI/UX locally in the browser before wiring up cloud services.
+Designing and validating the core UI/UX in the browser before wiring up cloud services.
 
 | Feature | Status |
 |---------|--------|
 | Audio recording + live waveform | Ready |
 | IndexedDB local persistence | Ready |
-| Entry timeline + playback | Ready |
-| AI Brainstorm (Claude streaming) | Ready |
+| Entry timeline + custom player | Ready |
+| Search (title, transcript, summary) | Ready |
+| AI auto-tag + smart title + summary | Ready |
+| Perspective Mode (5 personalities + intensity) | Ready |
 | Transcription (Whisper) | Coming next |
 | Cloud sync (Supabase) | Later |
-| Auth / sharing | Later |
+| Biometric lock + E2E encryption | Later |
 | React Native mobile app | Later |
+
+---
+
+## Perspective Mode
+
+The core AI differentiator. Choose a personality and intensity before each session:
+
+| Personality | Purpose |
+|-------------|----------|
+| Listener | Reflects back, validates, never advises |
+| Comfort | Warm encouragement, emotional support |
+| Reality Check | Honest, balanced, calls things out gently |
+| Strategist | Extracts action from chaos |
+| Challenger | Devil’s advocate, stress-tests thinking |
+
+Intensity: **Soft → Direct → Tough**
+
+All modes include safety rails — Claude will redirect to professional help if a mental health crisis is detected.
+
+---
 
 ## Getting Started
 
@@ -26,16 +50,15 @@ npm install
 npm run dev
 ```
 
-To use the AI Brainstorm feature, open **Settings** (gear icon) and paste your Anthropic API key. It stays in your browser's local storage only.
+Open **Settings** (gear icon) and add your Anthropic API key to enable Perspective Mode and AI auto-tagging.
 
-## Planned Full Stack
+---
 
-| Layer | Technology |
-|-------|------------|
-| Mobile app | React Native + Expo |
-| Auth | Supabase Auth |
-| Cloud storage | Supabase Storage + PostgreSQL |
-| Transcription | OpenAI Whisper |
-| AI conversation | Anthropic Claude |
+## Roadmap
 
-See `supabase/schema.sql` for the full database schema designed for the production version.
+1. **Transcription** — Whisper API after recording stops
+2. **Search** — full semantic/emotion-based search (Supabase vectors)
+3. **Mobile** — React Native + Expo
+4. **Auth + sync** — Supabase Auth + Storage
+5. **Sharing** — share entries with other users
+6. **Privacy** — biometric lock, on-device transcription option, E2E encryption

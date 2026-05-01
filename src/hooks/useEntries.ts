@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAllEntries, saveEntry, deleteEntry } from '../db'
+import { getAllEntries, saveEntry, deleteEntry, getEntry } from '../db'
 import type { DiaryEntry } from '../types'
 
 export function useEntries() {
@@ -20,14 +20,11 @@ export function useEntries() {
     setEntries((prev) => prev.filter((e) => e.id !== id))
   }, [])
 
-  const updateTranscript = useCallback(async (id: string, transcript: string) => {
-    setEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, transcript } : e))
-    )
-    const all = await getAllEntries()
-    const target = all.find((e) => e.id === id)
-    if (target) await saveEntry({ ...target, transcript })
+  const updateEntry = useCallback(async (id: string, patch: Partial<DiaryEntry>) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+    const target = await getEntry(id)
+    if (target) await saveEntry({ ...target, ...patch })
   }, [])
 
-  return { entries, loading, add, remove, updateTranscript }
+  return { entries, loading, add, remove, updateEntry }
 }
