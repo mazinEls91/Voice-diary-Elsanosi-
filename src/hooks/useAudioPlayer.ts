@@ -1,43 +1,42 @@
-import { useState, useRef, useCallback } from 'react'
-import { Audio } from 'expo-av'
+import { useState, useRef, useEffect } from 'react'
 
-export function useAudioPlayer(audioUri: string) {
+export function useAudioPlayer(blob: Blob | null) {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [positionSeconds, setPositionSeconds] = useState(0)
-  const soundRef = useRef<Audio.Sound | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const urlRef = useRef<string | null>(null)
 
-  const load = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync()
+  useEffect(() => {
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    urlRef.current = url
+    const audio = new Audio(url)
+    audioRef.current = audio
+
+    audio.onloadedmetadata = () => setDuration(audio.duration)
+    audio.ontimeupdate = () => setCurrentTime(audio.currentTime)
+    audio.onended = () => { setIsPlaying(false); setCurrentTime(0) }
+
+    return () => {
+      audio.pause()
+      URL.revokeObjectURL(url)
     }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: audioUri },
-      { shouldPlay: false },
-      (status) => {
-        if (status.isLoaded) {
-          setPositionSeconds(Math.round((status.positionMillis ?? 0) / 1000))
-          if (status.didJustFinish) setIsPlaying(false)
-        }
-      }
-    )
-    soundRef.current = sound
-  }, [audioUri])
+  }, [blob])
 
-  const play = useCallback(async () => {
-    if (!soundRef.current) await load()
-    await soundRef.current?.playAsync()
-    setIsPlaying(true)
-  }, [load])
+  function togglePlay() {
+    const audio = audioRef.current
+    if (!audio) return
+    if (isPlaying) { audio.pause(); setIsPlaying(false) }
+    else { audio.play(); setIsPlaying(true) }
+  }
 
-  const pause = useCallback(async () => {
-    await soundRef.current?.pauseAsync()
-    setIsPlaying(false)
-  }, [])
+  function seek(time: number) {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time
+      setCurrentTime(time)
+    }
+  }
 
-  const unload = useCallback(async () => {
-    await soundRef.current?.unloadAsync()
-    soundRef.current = null
-  }, [])
-
-  return { isPlaying, positionSeconds, load, play, pause, unload }
+  return { isPlaying, currentTime, duration, togglePlay, seek }
 }

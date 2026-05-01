@@ -1,20 +1,21 @@
-import EntryList from './components/EntryList'
-import AudioRecorder from './components/AudioRecorder'
-import { useDiaryEntries } from './hooks/useDiaryEntries'
-import styles from './App.module.css'
+import { useState } from 'react'
+import HomeView from './views/HomeView'
+import EntryView from './views/EntryView'
+import type { AppView } from './types'
 
 export default function App() {
-  const { entries, addEntry } = useDiaryEntries()
+  const [view, setView] = useState<AppView>({ screen: 'home' })
+
+  if (view.screen === 'entry') {
+    return (
+      <EntryView
+        entryId={view.entryId}
+        onBack={() => setView({ screen: 'home' })}
+      />
+    )
+  }
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <h1>Voice Diary</h1>
-      </header>
-      <main className={styles.main}>
-        <AudioRecorder onSave={addEntry} />
-        <EntryList entries={entries} />
-      </main>
-    </div>
+    <HomeView onOpenEntry={(id) => setView({ screen: 'entry', entryId: id })} />
   )
 }

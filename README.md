@@ -1,106 +1,41 @@
 # Voice Diary — Elsanosi
 
-A personal audio diary app for capturing thoughts, epiphanies, and reflections. Record, transcribe, and brainstorm with an AI — like having a private podcast with yourself.
+A personal audio diary app for capturing thoughts, epiphanies, and reflections.
 
 ---
 
-## Features
+## Current Phase: Web Prototype
 
-| Feature | Description |
-|---------|-------------|
-| **Record** | One-tap audio recording saved locally on device |
-| **Transcribe** | Auto-transcription via OpenAI Whisper |
-| **AI Brainstorm** | Back-and-forth podcast-style conversation with Claude AI |
-| **Cloud Sync** | Entries synced to Supabase (audio files + metadata) |
-| **Offline First** | Works without internet; syncs when connection resumes |
-| **Auth** | Email/password sign-in with secure sessions |
-| **Sharing** | Share individual entries with other app users |
+Building and designing the core UI/UX locally in the browser before wiring up cloud services.
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Mobile framework | React Native + Expo (iOS & Android) |
-| Navigation | Expo Router (file-based) |
-| Local storage | Expo SQLite (metadata) + Expo FileSystem (audio) |
-| Cloud backend | Supabase (Auth + PostgreSQL + Storage + Realtime) |
-| Transcription | OpenAI Whisper API |
-| AI conversation | Anthropic Claude API (streaming) |
-| State management | Zustand |
-| Styling | StyleSheet + NativeWind |
-
----
-
-## Project Structure
-
-```
-app/                        # Expo Router screens
-  (auth)/
-    sign-in.tsx
-    sign-up.tsx
-  (tabs)/
-    index.tsx               # Record + recent entries
-    library.tsx             # Full entry timeline
-    profile.tsx             # User profile & settings
-  entry/
-    [id].tsx                # Single entry detail
-    [id]/brainstorm.tsx     # AI podcast session for an entry
-  _layout.tsx
-
-src/
-  components/               # Shared UI components
-  hooks/                    # Custom React hooks
-  services/
-    supabase.ts             # Supabase client
-    auth.ts                 # Auth helpers
-    storage.ts              # Upload/download audio
-    transcription.ts        # Whisper API
-    brainstorm.ts           # Claude API conversation
-    sync.ts                 # Local <-> cloud sync logic
-  store/
-    entries.ts              # Zustand entries store
-    auth.ts                 # Zustand auth store
-  types/
-    index.ts
-  utils/
-    audio.ts
-    format.ts
-
-supabase/
-  schema.sql               # Full database schema
-  seed.sql                 # Dev seed data
-```
-
----
+| Feature | Status |
+|---------|--------|
+| Audio recording + live waveform | Ready |
+| IndexedDB local persistence | Ready |
+| Entry timeline + playback | Ready |
+| AI Brainstorm (Claude streaming) | Ready |
+| Transcription (Whisper) | Coming next |
+| Cloud sync (Supabase) | Later |
+| Auth / sharing | Later |
+| React Native mobile app | Later |
 
 ## Getting Started
 
 ```bash
 npm install
-npx expo start
+npm run dev
 ```
 
-Requires `.env` with:
-```
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-```
+To use the AI Brainstorm feature, open **Settings** (gear icon) and paste your Anthropic API key. It stays in your browser's local storage only.
 
----
+## Planned Full Stack
 
-## Database Schema Overview
+| Layer | Technology |
+|-------|------------|
+| Mobile app | React Native + Expo |
+| Auth | Supabase Auth |
+| Cloud storage | Supabase Storage + PostgreSQL |
+| Transcription | OpenAI Whisper |
+| AI conversation | Anthropic Claude |
 
-```
-profiles         — extended user info
-entries          — audio diary entries
-brainstorm_sessions — AI podcast sessions linked to an entry
-brainstorm_messages — individual turns in a session
-shared_entries   — sharing relationships between users
-tags / entry_tags — optional tagging system
-```
-
-See `supabase/schema.sql` for the full schema with RLS policies.
+See `supabase/schema.sql` for the full database schema designed for the production version.
