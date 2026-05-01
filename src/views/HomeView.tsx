@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useEntries } from '../hooks/useEntries'
 import { autoTagEntry } from '../services/autoTag'
+import { transcribeAudio } from '../services/transcription'
 import RecordButton from '../components/RecordButton'
 import EntryCard from '../components/EntryCard'
 import SettingsPanel from '../components/SettingsPanel'
@@ -19,6 +20,33 @@ export default function HomeView({ onOpenEntry }: Props) {
   const [saving, setSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [search, setSearch] = useState('')
+  const [finalTranscript, setFinalTranscript] = useState('')
+  const [transcribing, setTranscribing] = useState(false)
+
+  // When recording stops, run Whisper if an OpenAI key is available.
+  // Web Speech API result is used as instant fallback while Whisper runs.
+  useEffect(() => {
+    if (recorder.state !== 'stopped' || !recorder.audioBlob) return
+
+    const openaiKey = localStorage.getItem('openai_api_key')
+
+    if (openaiKey) {
+      setTranscribing(true)
+      setFinalTranscript(recorder.transcript) // show Web Speech result immediately
+      transcribeAudio(openaiKey, recorder.audioBlob)
+        .then((t) => setFinalTranscript(t))
+        .catch(() => setFinalTranscript(recorder.transcript)) // graceful fallback
+        .finally(() => setTranscribing(false))
+    } else {
+      // No OpenAI key — use Web Speech API result as-is
+      setFinalTranscript(recorder.transcript)
+    }
+  }, [recorder.state, recorder.audioBlob])
+
+  // Reset transcript when user discards
+  useEffect(() => {
+    if (recorder.state === 'idle') setFinalTranscript('')
+  }, [recorder.state])
 
   async function handleSave() {
     if (!recorder.audioBlob) return
@@ -29,21 +57,22 @@ export default function HomeView({ onOpenEntry }: Props) {
       id,
       title: title.trim() || 'Untitled entry',
       audioBlob: recorder.audioBlob,
-      transcript: recorder.transcript || undefined,
+      transcript: finalTranscript || undefined,
       durationSeconds: recorder.durationSeconds,
       createdAt: new Date().toISOString(),
       tags: [],
     }
     await add(entry)
     setTitle('')
+    setFinalTranscript('')
     recorder.reset()
     setSaving(false)
 
-    // Auto-tag using transcript when available, otherwise fall back to title
-    const key = localStorage.getItem('anthropic_api_key')
-    if (key) {
+    // Auto-tag using Whisper transcript for richer context
+    const anthropicKey = localStorage.getItem('anthropic_api_key')
+    if (anthropicKey) {
       const context = entry.transcript || entry.title
-      autoTagEntry(key, context)
+      autoTagEntry(anthropicKey, context)
         .then((result) => {
           updateEntry(id, {
             category: result.category,
@@ -83,7 +112,7 @@ export default function HomeView({ onOpenEntry }: Props) {
           onStop={recorder.stop}
         />
 
-        {/* Live transcript preview during recording */}
+        {/* Live Web Speech preview while recording */}
         {recorder.state === 'recording' && recorder.transcript && (
           <div className={styles.liveTranscript}>
             <span className={styles.liveTranscriptText}>{recorder.transcript}</span>
@@ -98,20 +127,30 @@ export default function HomeView({ onOpenEntry }: Props) {
               placeholder="Name this entry… (leave blank for AI title)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              onKeyDown={(e) => e.key === 'Enter' && !transcribing && handleSave()}
               autoFocus
             />
 
-            {recorder.transcript && (
+            {/* Transcript area */}
+            {transcribing ? (
+              <div className={styles.transcribing}>
+                <span className={styles.transcribingDot} />
+                Transcribing with Whisper…
+              </div>
+            ) : finalTranscript ? (
               <div className={styles.transcriptPreview}>
                 <span className={styles.transcriptLabel}>Transcript</span>
-                <p className={styles.transcriptText}>{recorder.transcript}</p>
+                <p className={styles.transcriptText}>{finalTranscript}</p>
               </div>
-            )}
+            ) : null}
 
             <div className={styles.saveActions}>
-              <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Entry'}
+              <button
+                className={styles.saveBtn}
+                onClick={handleSave}
+                disabled={saving || transcribing}
+              >
+                {saving ? 'Saving…' : transcribing ? 'Wait…' : 'Save Entry'}
               </button>
               <button className={styles.discardBtn} onClick={recorder.reset}>Discard</button>
             </div>

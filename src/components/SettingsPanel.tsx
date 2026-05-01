@@ -6,11 +6,17 @@ interface Props {
 }
 
 export default function SettingsPanel({ onClose }: Props) {
-  const [key, setKey] = useState(localStorage.getItem('anthropic_api_key') ?? '')
+  const [anthropicKey, setAnthropicKey] = useState(
+    localStorage.getItem('anthropic_api_key') ?? ''
+  )
+  const [openaiKey, setOpenaiKey] = useState(
+    localStorage.getItem('openai_api_key') ?? ''
+  )
   const [saved, setSaved] = useState(false)
 
   function save() {
-    localStorage.setItem('anthropic_api_key', key.trim())
+    localStorage.setItem('anthropic_api_key', anthropicKey.trim())
+    localStorage.setItem('openai_api_key', openaiKey.trim())
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
@@ -25,20 +31,40 @@ export default function SettingsPanel({ onClose }: Props) {
           </button>
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>Anthropic API Key</label>
-          <p className={styles.hint}>Required for the AI Brainstorm feature. Stored locally in your browser only.</p>
-          <input
-            className={styles.input}
-            type="password"
-            placeholder="sk-ant-…"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-          <button className={styles.saveBtn} onClick={save}>
-            {saved ? 'Saved!' : 'Save Key'}
-          </button>
+        <div className={styles.fields}>
+          <div className={styles.field}>
+            <label className={styles.label}>Anthropic API Key</label>
+            <p className={styles.hint}>
+              Powers <strong>Perspective Mode</strong> and <strong>auto-tagging</strong>.
+            </p>
+            <input
+              className={styles.input}
+              type="password"
+              placeholder="sk-ant-…"
+              value={anthropicKey}
+              onChange={(e) => setAnthropicKey(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>OpenAI API Key</label>
+            <p className={styles.hint}>
+              Powers <strong>Whisper transcription</strong>. Without this, the app
+              falls back to the browser’s built-in speech recognition.
+            </p>
+            <input
+              className={styles.input}
+              type="password"
+              placeholder="sk-…"
+              value={openaiKey}
+              onChange={(e) => setOpenaiKey(e.target.value)}
+            />
+          </div>
         </div>
+
+        <button className={styles.saveBtn} onClick={save}>
+          {saved ? 'Saved!' : 'Save Keys'}
+        </button>
       </div>
     </div>
   )
