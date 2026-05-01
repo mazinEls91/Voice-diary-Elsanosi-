@@ -10,10 +10,7 @@ export function useAudioPlayer(blob: Blob | null) {
   useEffect(() => {
     if (!blob) return
 
-    // Revoke previous object URL to avoid memory leaks
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current)
-    }
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
 
     const url = URL.createObjectURL(blob)
     urlRef.current = url
@@ -22,30 +19,37 @@ export function useAudioPlayer(blob: Blob | null) {
     audio.preload = 'metadata'
     audioRef.current = audio
 
-    audio.onloadedmetadata = () => {
-      // WebM blobs from MediaRecorder often report Infinity duration.
-      // Seeking to a huge timestamp forces the browser to scan to the real end.
+    // Keep progress bar in sync throughout playback
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
+    audio.addEventListener('timeupdate', onTimeUpdate)
+
+    audio.addEventListener('loadedmetadata', () => {
       if (!isFinite(audio.duration)) {
-        audio.currentTime = 1e101
-        const fix = () => {
-          audio.ontimeupdate = null
+        // WebM blobs from MediaRecorder often report Infinity duration.
+        // Seeking to a huge value forces the browser to scan to the real end.
+        const onceFixed = () => {
+          audio.removeEventListener('timeupdate', onceFixed)
           setDuration(audio.duration)
           audio.currentTime = 0
         }
-        audio.ontimeupdate = fix
+        audio.addEventListener('timeupdate', onceFixed)
+        audio.currentTime = 1e101
       } else {
         setDuration(audio.duration)
       }
-    }
+    })
 
-    audio.ontimeupdate = () => setCurrentTime(audio.currentTime)
-    audio.onended = () => { setIsPlaying(false); setCurrentTime(0) }
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false)
+      setCurrentTime(0)
+    })
 
     audio.src = url
     audio.load()
 
     return () => {
       audio.pause()
+      audio.removeEventListener('timeupdate', onTimeUpdate)
       audio.src = ''
       URL.revokeObjectURL(url)
       urlRef.current = null
