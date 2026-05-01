@@ -1,47 +1,46 @@
 import { useState, useRef, useCallback } from 'react'
+import { Audio } from 'expo-av'
 import type { RecorderState } from '../types'
 
 export function useAudioRecorder() {
   const [state, setState] = useState<RecorderState>('idle')
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [uri, setUri] = useState<string | null>(null)
   const [durationSeconds, setDurationSeconds] = useState(0)
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<BlobPart[]>([])
-  const startTimeRef = useRef<number>(0)
+  const recordingRef = useRef<Audio.Recording | null>(null)
 
   const start = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const recorder = new MediaRecorder(stream)
-    mediaRecorderRef.current = recorder
-    chunksRef.current = []
+    await Audio.requestPermissionsAsync()
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+    })
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
-    }
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-      setAudioBlob(blob)
-      setDurationSeconds(Math.round((Date.now() - startTimeRef.current) / 1000))
-      stream.getTracks().forEach((t) => t.stop())
-    }
-
-    startTimeRef.current = Date.now()
-    recorder.start()
+    const { recording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    )
+    recordingRef.current = recording
     setState('recording')
   }, [])
 
-  const stop = useCallback(() => {
-    mediaRecorderRef.current?.stop()
+  const stop = useCallback(async () => {
+    const recording = recordingRef.current
+    if (!recording) return
+
+    await recording.stopAndUnloadAsync()
+    const status = await recording.getStatusAsync()
+    const fileUri = recording.getURI()
+
+    setUri(fileUri ?? null)
+    setDurationSeconds(Math.round((status.durationMillis ?? 0) / 1000))
     setState('stopped')
   }, [])
 
   const reset = useCallback(() => {
-    setAudioBlob(null)
+    recordingRef.current = null
+    setUri(null)
     setDurationSeconds(0)
     setState('idle')
   }, [])
 
-  return { state, audioBlob, durationSeconds, start, stop, reset }
+  return { state, uri, durationSeconds, start, stop, reset }
 }
