@@ -23,6 +23,7 @@ export default function HomeView({ onOpenEntry }: Props) {
   const [transcribing, setTranscribing] = useState(false)
   const [reelAngle, setReelAngle] = useState(0)
   const animRef = useRef<number>()
+  const transcriptRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (recorder.state !== 'recording') {
@@ -36,6 +37,13 @@ export default function HomeView({ onOpenEntry }: Props) {
     animRef.current = requestAnimationFrame(spin)
     return () => cancelAnimationFrame(animRef.current!)
   }, [recorder.state])
+
+  // Auto-scroll transcript to bottom whenever new words arrive
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight
+    }
+  }, [recorder.transcript])
 
   useEffect(() => {
     if (recorder.state !== 'stopped' || !recorder.audioBlob) return
@@ -145,6 +153,23 @@ export default function HomeView({ onOpenEntry }: Props) {
           </span>
         </div>
 
+        {/* Live transcript window — visible as soon as recording starts */}
+        {isRecording && (
+          <div className={styles.liveTranscript}>
+            <div className={styles.liveHeader}>
+              <span className={styles.liveDot} />
+              <span className={styles.liveLabel}>LIVE TRANSCRIPT</span>
+            </div>
+            <div className={styles.liveBody} ref={transcriptRef}>
+              {recorder.transcript ? (
+                <span className={styles.liveText}>{recorder.transcript}</span>
+              ) : (
+                <span className={styles.liveHint}>Listening…<span className={styles.cursor} /></span>
+              )}
+            </div>
+          </div>
+        )}
+
         {isStopped && (
           <div className={styles.saveForm}>
             <input
@@ -204,12 +229,6 @@ export default function HomeView({ onOpenEntry }: Props) {
         </div>
       </div>
 
-      {isRecording && recorder.transcript && (
-        <div className={styles.liveTranscript}>
-          <span className={styles.liveText}>{recorder.transcript}</span>
-        </div>
-      )}
-
       <div className={styles.library}>
         {entries.length > 0 && (
           <div className={styles.searchRow}>
@@ -264,7 +283,6 @@ function CassetteSVG({ title, reelAngle, isRecording }: { title: string; reelAng
           <line x1={x} y1={y-3} x2={x} y2={y+3} stroke="#2a2018" strokeWidth="1"/>
         </g>
       ))}
-      {/* Label */}
       <rect x="20" y="14" width="260" height="80" rx="5" fill="#d0bfa0"/>
       {Array.from({ length: 8 }).map((_, i) => (
         <line key={i} x1="20" y1={22 + i * 10} x2="280" y2={22 + i * 10} stroke="rgba(37,28,10,0.07)" strokeWidth="0.5"/>
@@ -275,10 +293,8 @@ function CassetteSVG({ title, reelAngle, isRecording }: { title: string; reelAng
         {title.length > 30 ? title.slice(0, 30) + '…' : title}
       </text>
       <text x="150" y="84" textAnchor="middle" fontFamily="Courier New, monospace" fontSize="7" fill="#5a4828" letterSpacing="2">C-60  ·  HIGH BIAS</text>
-      {/* Tape window */}
       <rect x="30" y="102" width="240" height="72" rx="6" fill="#060403" stroke="#1e180c" strokeWidth="1.5"/>
       <rect x="34" y="106" width="232" height="64" rx="4" fill="#0a0806"/>
-      {/* Left reel */}
       <circle cx={lx} cy={ly} r="26" fill="#0f0d08" stroke="#241c0e" strokeWidth="1.5"/>
       <g transform={`rotate(${reelAngle}, ${lx}, ${ly})`}>
         {spokeAngles.map((deg, i) => {
@@ -288,7 +304,6 @@ function CassetteSVG({ title, reelAngle, isRecording }: { title: string; reelAng
       </g>
       <circle cx={lx} cy={ly} r="8" fill="#151208" stroke="#241c0e" strokeWidth="1"/>
       <circle cx={lx} cy={ly} r="3.5" fill="#0a0806"/>
-      {/* Right reel */}
       <circle cx={rx} cy={ry} r="26" fill="#0f0d08" stroke="#241c0e" strokeWidth="1.5"/>
       <g transform={`rotate(${-reelAngle}, ${rx}, ${ry})`}>
         {spokeAngles.map((deg, i) => {
@@ -298,10 +313,8 @@ function CassetteSVG({ title, reelAngle, isRecording }: { title: string; reelAng
       </g>
       <circle cx={rx} cy={ry} r="8" fill="#151208" stroke="#241c0e" strokeWidth="1"/>
       <circle cx={rx} cy={ry} r="3.5" fill="#0a0806"/>
-      {/* Guide posts */}
       <circle cx="55" cy="160" r="4" fill="#0f0d08" stroke="#241c0e"/>
       <circle cx="245" cy="160" r="4" fill="#0f0d08" stroke="#241c0e"/>
-      {/* Tape path */}
       <path d="M55 160 Q150 150 245 160" fill="none" stroke="#3a2c18" strokeWidth="2.5"/>
       <line x1={lx} y1={ly+26} x2="55" y2="160" stroke="#3a2c18" strokeWidth="2"/>
       <line x1={rx} y1={ry+26} x2="245" y2="160" stroke="#3a2c18" strokeWidth="2"/>
