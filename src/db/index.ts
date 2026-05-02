@@ -76,3 +76,18 @@ export async function saveEntry(entry: DiaryEntry): Promise<void> {
 export async function deleteEntry(id: string): Promise<void> {
   saveAll(loadAll().filter(e => e.id !== id))
 }
+
+// Returns the raw JSON string stored in localStorage — used for backup export
+export function exportBackup(): string {
+  return localStorage.getItem(LS_KEY) ?? '[]'
+}
+
+// Restores from a backup JSON string — merges with existing entries (no duplicates)
+export function importBackup(json: string): void {
+  const incoming: StoredEntry[] = JSON.parse(json)
+  if (!Array.isArray(incoming)) throw new Error('Invalid backup')
+  const existing = loadAll()
+  const existingIds = new Set(existing.map(e => e.id))
+  const merged = [...existing, ...incoming.filter(e => !existingIds.has(e.id))]
+  saveAll(merged)
+}
