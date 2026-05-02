@@ -1,61 +1,78 @@
 import type { DiaryEntry } from '../types'
 
-const DB_NAME = 'voice-diary'
-const DB_VERSION = 1
-const STORE = 'entries'
+interface StoredEntry extends Omit<DiaryEntry, 'audioBlob'> {
+  audiob64: string
+  audioType: string
+}
 
-function open(): Promise<IDBDatabase> {
+const LS_KEY = 'voice-diary-v1'
+
+function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'id' })
-        store.createIndex('createdAt', 'createdAt')
-      }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      resolve(result.split(',')[1])
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
   })
+}
+
+function base64ToBlob(b64: string, type: string): Blob {
+  const bytes = atob(b64)
+  const arr = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+  return new Blob([arr], { type })
+}
+
+function loadAll(): StoredEntry[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveAll(entries: StoredEntry[]): void {
+  localStorage.setItem(LS_KEY, JSON.stringify(entries))
 }
 
 export async function getAllEntries(): Promise<DiaryEntry[]> {
-  const db = await open()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll()
-    req.onsuccess = () =>
-      resolve((req.result as DiaryEntry[]).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ))
-    req.onerror = () => reject(req.error)
-  })
+  return loadAll()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map(({ audiob64, audioType, ...rest }) => ({
+      ...rest,
+      audioBlob: base64ToBlob(audiob64, audioType),
+    }))
 }
 
 export async function getEntry(id: string): Promise<DiaryEntry | undefined> {
-  const db = await open()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id)
-    req.onsuccess = () => resolve(req.result as DiaryEntry | undefined)
-    req.onerror = () => reject(req.error)
-  })
+  const stored = loadAll().find(e => e.id === id)
+  if (!stored) return undefined
+  const { audiob64, audioType, ...rest } = stored
+  return { ...rest, audioBlob: base64ToBlob(audiob64, audioType) }
 }
 
 export async function saveEntry(entry: DiaryEntry): Promise<void> {
-  const db = await open()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    tx.objectStore(STORE).put(entry)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+  const all = loadAll()
+  const b64 = await blobToBase64(entry.audioBlob)
+  const { audioBlob, ...rest } = entry
+  const stored: StoredEntry = {
+    ...rest,
+    audiob64: b64,
+    audioType: audioBlob.type || 'audio/webm',
+  }
+  const idx = all.findIndex(e => e.id === entry.id)
+  if (idx !== -1) {
+    all[idx] = stored
+  } else {
+    all.push(stored)
+  }
+  saveAll(all)
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  const db = await open()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    tx.objectStore(STORE).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+  saveAll(loadAll().filter(e => e.id !== id))
 }
