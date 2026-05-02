@@ -31,6 +31,7 @@ export function useAudioRecorder() {
   const chunksRef = useRef<BlobPart[]>([])
   const startTimeRef = useRef(0)
   const animFrameRef = useRef<number>()
+  const timerRef = useRef<number>()
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
@@ -40,7 +41,6 @@ export function useAudioRecorder() {
   const start = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
-    // Waveform analyser
     const ctx = new AudioContext()
     audioCtxRef.current = ctx
     const source = ctx.createMediaStreamSource(stream)
@@ -58,7 +58,6 @@ export function useAudioRecorder() {
     }
     tick()
 
-    // Detect the best supported audio MIME type for this browser
     const mimeType = getBestMimeType()
     mimeTypeRef.current = mimeType
 
@@ -79,7 +78,6 @@ export function useAudioRecorder() {
       ctx.close()
     }
 
-    // Web Speech API — runs in parallel, builds transcript in real time
     finalRef.current = ''
     setTranscript('')
     const SpeechRecognitionAPI = getSpeechRecognition()
@@ -102,10 +100,7 @@ export function useAudioRecorder() {
         setTranscript(finalRef.current + interim)
       }
 
-      recognition.onend = () => {
-        setTranscript(finalRef.current.trim())
-      }
-
+      recognition.onend = () => { setTranscript(finalRef.current.trim()) }
       recognition.onerror = (event) => {
         if (event.error !== 'no-speech') console.warn('Speech recognition:', event.error)
       }
@@ -115,17 +110,26 @@ export function useAudioRecorder() {
     }
 
     startTimeRef.current = Date.now()
+    setDurationSeconds(0)
+
+    // Live timer — updates every second during recording
+    timerRef.current = window.setInterval(() => {
+      setDurationSeconds(Math.round((Date.now() - startTimeRef.current) / 1000))
+    }, 1000)
+
     recorder.start()
     setState('recording')
   }, [])
 
   const stop = useCallback(() => {
+    clearInterval(timerRef.current)
     recognitionRef.current?.stop()
     recorderRef.current?.stop()
     setState('stopped')
   }, [])
 
   const reset = useCallback(() => {
+    clearInterval(timerRef.current)
     setAudioBlob(null)
     setDurationSeconds(0)
     setTranscript('')
