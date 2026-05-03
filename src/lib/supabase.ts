@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-export const STORAGE_BUCKET = 'audio-diary'
+export const STORAGE_BUCKET = 'audioappbucket'
 
 export function audioPublicUrl(path: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`
