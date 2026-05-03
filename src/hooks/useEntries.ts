@@ -7,7 +7,10 @@ export function useEntries() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAllEntries().then((all) => { setEntries(all); setLoading(false) })
+    getAllEntries()
+      .then((all) => setEntries(all))
+      .catch((err) => console.error('Failed to load entries:', err))
+      .finally(() => setLoading(false))
   }, [])
 
   const add = useCallback(async (entry: DiaryEntry) => {

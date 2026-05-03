@@ -1,68 +1,16 @@
 import type { DiaryEntry, EntryCategory } from '../types'
 import styles from './EntryCard.module.css'
 
-interface Props {
-  entry: DiaryEntry
-  onClick: () => void
-  onDelete: () => void
+const CATEGORY_COLORS: Record<EntryCategory, string> = {
+  idea: '#818cf8',
+  reminder: '#fbbf24',
+  reflection: '#a78bfa',
+  rant: '#f87171',
+  plan: '#34d399',
+  note: '#94a3b8',
 }
 
-const CATEGORY_LABELS: Record<EntryCategory, string> = {
-  idea: 'Idea',
-  reminder: 'Reminder',
-  reflection: 'Reflection',
-  rant: 'Rant',
-  plan: 'Plan',
-  note: 'Note',
-}
-
-export default function EntryCard({ entry, onClick, onDelete }: Props) {
-  const date = formatRelative(entry.createdAt)
-  const duration = formatDuration(entry.durationSeconds)
-
-  function handleDelete(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (confirm('Delete this entry?')) onDelete()
-  }
-
-  return (
-    <article
-      className={styles.card}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
-    >
-      <div className={styles.top}>
-        <div className={styles.left}>
-          <span className={styles.date}>{date}</span>
-          <span className={styles.duration}>{duration}</span>
-          {entry.category && (
-            <span className={`${styles.badge} ${styles[entry.category]}`}>
-              {CATEGORY_LABELS[entry.category]}
-            </span>
-          )}
-        </div>
-        <button className={styles.deleteBtn} onClick={handleDelete} aria-label="Delete entry">
-          <TrashIcon />
-        </button>
-      </div>
-
-      <h3 className={styles.title}>{entry.title}</h3>
-
-      {(entry.summary || entry.transcript) && (
-        <p className={styles.preview}>{entry.summary || entry.transcript}</p>
-      )}
-
-      <div className={styles.footer}>
-        <PlayIcon />
-        <span>Tap to open</span>
-      </div>
-    </article>
-  )
-}
-
-function formatRelative(iso: string) {
+function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'Just now'
@@ -70,31 +18,73 @@ function formatRelative(iso: string) {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
+  if (days === 1) return 'Yesterday'
   if (days < 7) return `${days}d ago`
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-function formatDuration(s: number) {
+function formatDuration(s: number): string {
   const m = Math.floor(s / 60).toString().padStart(2, '0')
   const sec = (s % 60).toString().padStart(2, '0')
   return `${m}:${sec}`
 }
 
-function TrashIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14H6L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4h6v2" />
-    </svg>
-  )
+interface Props {
+  entry: DiaryEntry
+  onClick: () => void
+  onDelete: () => void
 }
 
-function PlayIcon() {
+export default function EntryCard({ entry, onClick, onDelete }: Props) {
+  const catColor = entry.category ? CATEGORY_COLORS[entry.category] : undefined
+
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
+    <div className={styles.card} onClick={onClick}>
+      {/* Left spine — colour-coded by category */}
+      <div
+        className={styles.spine}
+        style={catColor ? { background: catColor + '28', borderRightColor: catColor + '50' } : undefined}
+      />
+
+      {/* Label area */}
+      <div className={styles.label}>
+        <div className={styles.labelStripe} />
+        <div className={styles.labelBody}>
+          <div className={styles.topRow}>
+            <span className={styles.title}>{entry.title}</span>
+            {entry.category && (
+              <span className={styles.category} style={{ color: catColor, borderColor: (catColor ?? '') + '55' }}>
+                {entry.category}
+              </span>
+            )}
+          </div>
+          {(entry.summary || entry.transcript) && (
+            <p className={styles.preview}>{entry.summary || entry.transcript}</p>
+          )}
+          <div className={styles.metaRow}>
+            <span className={styles.metaTime}>{relativeTime(entry.createdAt)}</span>
+            <span className={styles.metaDur}>{formatDuration(entry.durationSeconds)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Mini reel visual */}
+      <div className={styles.reels}>
+        <div className={styles.reel}>
+          <div className={styles.reelHub} />
+        </div>
+        <div className={styles.reel}>
+          <div className={styles.reelHub} />
+        </div>
+      </div>
+
+      <button
+        className={styles.del}
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        aria-label="Delete"
+      >
+        ×
+      </button>
+    </div>
   )
 }
