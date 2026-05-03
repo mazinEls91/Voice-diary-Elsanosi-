@@ -1,5 +1,4 @@
-import { useState, useRef } from 'react'
-import { exportBackup, importBackup } from '../db'
+import { useState } from 'react'
 import styles from './SettingsPanel.module.css'
 
 interface Props {
@@ -16,8 +15,6 @@ export default function SettingsPanel({ onClose }: Props) {
   const [hideAnthropic, setHideAnthropic] = useState(true)
   const [hideOpenai, setHideOpenai] = useState(true)
   const [saved, setSaved] = useState(false)
-  const [importStatus, setImportStatus] = useState<'idle' | 'ok' | 'err'>('idle')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   function save() {
     localStorage.setItem('anthropic_api_key', anthropicKey.trim())
@@ -26,74 +23,17 @@ export default function SettingsPanel({ onClose }: Props) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  function handleExport() {
-    const data = exportBackup()
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `voice-diary-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        importBackup(reader.result as string)
-        setImportStatus('ok')
-        setTimeout(() => {
-          setImportStatus('idle')
-          window.location.reload()
-        }, 1200)
-      } catch {
-        setImportStatus('err')
-        setTimeout(() => setImportStatus('idle'), 2500)
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
           <div>
             <h2 className={styles.title}>Settings</h2>
-            <p className={styles.subtitle}>Keys stored in your browser only.</p>
+            <p className={styles.subtitle}>Recordings saved to Supabase cloud. Keys stored in your browser.</p>
           </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>
-        </div>
-
-        {/* Data backup section */}
-        <div className={styles.backupSection}>
-          <span className={styles.backupLabel}>DATA BACKUP</span>
-          <p className={styles.backupHint}>
-            StackBlitz resets storage on each reload. Export your recordings
-            before refreshing, then import them after to keep your data.
-          </p>
-          <div className={styles.backupRow}>
-            <button className={styles.backupBtn} onClick={handleExport}>
-              <DownloadIcon /> Export
-            </button>
-            <button className={styles.backupBtn} onClick={() => fileRef.current?.click()}>
-              <UploadIcon />
-              {importStatus === 'ok' ? 'Imported ✓' : importStatus === 'err' ? 'Invalid file' : 'Import'}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json,application/json"
-              className={styles.fileInput}
-              onChange={handleImport}
-            />
-          </div>
         </div>
 
         <div className={styles.divider} />
@@ -173,10 +113,4 @@ function EyeIcon() {
 }
 function EyeOffIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-}
-function DownloadIcon() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-}
-function UploadIcon() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
 }

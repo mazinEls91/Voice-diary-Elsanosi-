@@ -18,7 +18,7 @@ export default function EntryView({ entryId, onBack }: Props) {
   const [showPerspective, setShowPerspective] = useState(false)
   const [reelAngle, setReelAngle] = useState(0)
   const animRef = useRef<number>()
-  const player = useAudioPlayer(entry?.audioBlob ?? null)
+  const player = useAudioPlayer(entry?.audioBlob ?? null, entry?.audioUrl)
 
   useEffect(() => { getEntry(entryId).then(e => setEntry(e ?? null)) }, [entryId])
 

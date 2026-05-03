@@ -1,7 +1,8 @@
 export interface DiaryEntry {
   id: string
   title: string
-  audioBlob: Blob
+  audioBlob: Blob | null
+  audioUrl?: string
   transcript?: string
   summary?: string
   category?: EntryCategory

@@ -1,32 +1,38 @@
 import { useState, useRef, useEffect } from 'react'
 
-export function useAudioPlayer(blob: Blob | null) {
+export function useAudioPlayer(blob: Blob | null, audioUrl?: string) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const urlRef = useRef<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!blob) return
+    // Prefer an in-memory blob; fall back to the remote URL from Supabase
+    let src: string | null = null
+    let isObjectUrl = false
 
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    if (blob) {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+      src = URL.createObjectURL(blob)
+      objectUrlRef.current = src
+      isObjectUrl = true
+    } else if (audioUrl) {
+      src = audioUrl
+    }
 
-    const url = URL.createObjectURL(blob)
-    urlRef.current = url
+    if (!src) return
 
     const audio = new Audio()
     audio.preload = 'metadata'
     audioRef.current = audio
 
-    // Keep progress bar in sync throughout playback
     const onTimeUpdate = () => setCurrentTime(audio.currentTime)
     audio.addEventListener('timeupdate', onTimeUpdate)
 
     audio.addEventListener('loadedmetadata', () => {
       if (!isFinite(audio.duration)) {
-        // WebM blobs from MediaRecorder often report Infinity duration.
-        // Seeking to a huge value forces the browser to scan to the real end.
+        // WebM from MediaRecorder often reports Infinity; seek trick fixes it
         const onceFixed = () => {
           audio.removeEventListener('timeupdate', onceFixed)
           setDuration(audio.duration)
@@ -44,17 +50,19 @@ export function useAudioPlayer(blob: Blob | null) {
       setCurrentTime(0)
     })
 
-    audio.src = url
+    audio.src = src
     audio.load()
 
     return () => {
       audio.pause()
       audio.removeEventListener('timeupdate', onTimeUpdate)
       audio.src = ''
-      URL.revokeObjectURL(url)
-      urlRef.current = null
+      if (isObjectUrl && objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
     }
-  }, [blob])
+  }, [blob, audioUrl])
 
   async function togglePlay() {
     const audio = audioRef.current

@@ -1,93 +1,69 @@
-import type { DiaryEntry } from '../types'
+import { supabase, STORAGE_BUCKET, audioPublicUrl } from '../lib/supabase'
+import type { DiaryEntry, EntryCategory } from '../types'
 
-interface StoredEntry extends Omit<DiaryEntry, 'audioBlob'> {
-  audiob64: string
-  audioType: string
-}
-
-const LS_KEY = 'voice-diary-v1'
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      resolve(result.split(',')[1])
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
-function base64ToBlob(b64: string, type: string): Blob {
-  const bytes = atob(b64)
-  const arr = new Uint8Array(bytes.length)
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
-  return new Blob([arr], { type })
-}
-
-function loadAll(): StoredEntry[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
+function rowToEntry(row: Record<string, unknown>): DiaryEntry {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    audioBlob: null,
+    audioUrl: audioPublicUrl(row.audio_path as string),
+    transcript: (row.transcript as string | null) ?? undefined,
+    summary: (row.summary as string | null) ?? undefined,
+    category: (row.category as EntryCategory | null) ?? undefined,
+    durationSeconds: row.duration_seconds as number,
+    createdAt: row.created_at as string,
+    tags: row.tags ? (row.tags as string).split(',').filter(Boolean) : [],
   }
-}
-
-function saveAll(entries: StoredEntry[]): void {
-  localStorage.setItem(LS_KEY, JSON.stringify(entries))
 }
 
 export async function getAllEntries(): Promise<DiaryEntry[]> {
-  return loadAll()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .map(({ audiob64, audioType, ...rest }) => ({
-      ...rest,
-      audioBlob: base64ToBlob(audiob64, audioType),
-    }))
+  const { data, error } = await supabase
+    .from('diary_entries')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(rowToEntry)
 }
 
 export async function getEntry(id: string): Promise<DiaryEntry | undefined> {
-  const stored = loadAll().find(e => e.id === id)
-  if (!stored) return undefined
-  const { audiob64, audioType, ...rest } = stored
-  return { ...rest, audioBlob: base64ToBlob(audiob64, audioType) }
+  const { data, error } = await supabase
+    .from('diary_entries')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) return undefined
+  return rowToEntry(data as Record<string, unknown>)
 }
 
 export async function saveEntry(entry: DiaryEntry): Promise<void> {
-  const all = loadAll()
-  const b64 = await blobToBase64(entry.audioBlob)
-  const { audioBlob, ...rest } = entry
-  const stored: StoredEntry = {
-    ...rest,
-    audiob64: b64,
-    audioType: audioBlob.type || 'audio/webm',
+  const audioPath = `${entry.id}.webm`
+
+  if (entry.audioBlob) {
+    const { error: uploadErr } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(audioPath, entry.audioBlob, {
+        contentType: entry.audioBlob.type || 'audio/webm',
+        upsert: true,
+      })
+    if (uploadErr) throw uploadErr
   }
-  const idx = all.findIndex(e => e.id === entry.id)
-  if (idx !== -1) {
-    all[idx] = stored
-  } else {
-    all.push(stored)
-  }
-  saveAll(all)
+
+  const { error } = await supabase.from('diary_entries').upsert({
+    id: entry.id,
+    title: entry.title,
+    transcript: entry.transcript ?? null,
+    summary: entry.summary ?? null,
+    category: entry.category ?? null,
+    duration_seconds: entry.durationSeconds,
+    tags: entry.tags.join(','),
+    audio_path: audioPath,
+    created_at: entry.createdAt,
+  })
+  if (error) throw error
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  saveAll(loadAll().filter(e => e.id !== id))
-}
-
-// Returns the raw JSON string stored in localStorage — used for backup export
-export function exportBackup(): string {
-  return localStorage.getItem(LS_KEY) ?? '[]'
-}
-
-// Restores from a backup JSON string — merges with existing entries (no duplicates)
-export function importBackup(json: string): void {
-  const incoming: StoredEntry[] = JSON.parse(json)
-  if (!Array.isArray(incoming)) throw new Error('Invalid backup')
-  const existing = loadAll()
-  const existingIds = new Set(existing.map(e => e.id))
-  const merged = [...existing, ...incoming.filter(e => !existingIds.has(e.id))]
-  saveAll(merged)
+  await supabase.storage.from(STORAGE_BUCKET).remove([`${id}.webm`])
+  const { error } = await supabase.from('diary_entries').delete().eq('id', id)
+  if (error) throw error
 }
