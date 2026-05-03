@@ -17,6 +17,7 @@ export default function HomeView({ onOpenEntry }: Props) {
   const { entries, loading, add, remove, updateEntry } = useEntries()
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [search, setSearch] = useState('')
   const [finalTranscript, setFinalTranscript] = useState('')
@@ -67,6 +68,7 @@ export default function HomeView({ onOpenEntry }: Props) {
   async function handleSave() {
     if (!recorder.audioBlob) return
     setSaving(true)
+    setSaveError(null)
     const id = crypto.randomUUID()
     const entry: DiaryEntry = {
       id,
@@ -77,7 +79,14 @@ export default function HomeView({ onOpenEntry }: Props) {
       createdAt: new Date().toISOString(),
       tags: [],
     }
-    await add(entry)
+    try {
+      await add(entry)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setSaveError(`Save failed: ${msg}`)
+      setSaving(false)
+      return
+    }
     setTitle('')
     setFinalTranscript('')
     recorder.reset()
@@ -190,6 +199,9 @@ export default function HomeView({ onOpenEntry }: Props) {
             {!transcribing && finalTranscript && (
               <p className={styles.transcriptPreview}>{finalTranscript}</p>
             )}
+            {saveError && (
+              <p className={styles.saveErrorMsg}>{saveError}</p>
+            )}
           </div>
         )}
 
@@ -204,8 +216,8 @@ export default function HomeView({ onOpenEntry }: Props) {
           </button>
           <button
             className={styles.ctrlBtn}
-            onClick={isRecording ? recorder.stop : isStopped ? recorder.reset : undefined}
-            disabled={recorder.state === 'idle'}
+            onClick={isRecording ? recorder.stop : undefined}
+            disabled={!isRecording}
           >
             <StopIcon />
             <span>STOP</span>
@@ -218,9 +230,14 @@ export default function HomeView({ onOpenEntry }: Props) {
             <SaveIcon />
             <span>{saving ? 'SAVE…' : 'SAVE'}</span>
           </button>
-          <button className={styles.ctrlBtn} disabled>
+          <button
+            className={styles.ctrlBtn}
+            onClick={isStopped ? recorder.reset : undefined}
+            disabled={!isStopped || saving}
+            title="Discard this recording"
+          >
             <RewIcon />
-            <span>REW</span>
+            <span>DISC</span>
           </button>
           <button className={styles.ctrlBtn} disabled>
             <FwdIcon />

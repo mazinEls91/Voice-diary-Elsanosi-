@@ -372,3 +372,16 @@
   padding: 24px 0;
   font-style: italic;
 }
+
+.saveErrorMsg {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #e05050;
+  background: rgba(192,44,30,0.12);
+  border: 1px solid rgba(192,44,30,0.3);
+  border-radius: 4px;
+  padding: 6px 10px;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+  word-break: break-all;
+}
