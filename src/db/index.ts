@@ -29,7 +29,9 @@ function rowToEntry(row: Record<string, unknown>, withAudio: boolean): DiaryEntr
     category: (row.category as EntryCategory | null) ?? undefined,
     durationSeconds: row.duration_seconds as number,
     createdAt: row.created_at as string,
-    tags: row.tags ? (row.tags as string).split(',').filter(Boolean) : [],
+    tags: Array.isArray(row.tags)
+      ? (row.tags as string[])
+      : row.tags ? String(row.tags).split(',').filter(Boolean) : [],
   }
 }
 
@@ -62,7 +64,7 @@ export async function saveEntry(entry: DiaryEntry): Promise<void> {
     summary: entry.summary ?? null,
     category: entry.category ?? null,
     duration_seconds: entry.durationSeconds,
-    tags: entry.tags.join(','),
+    tags: entry.tags,
     audio_path: `${entry.id}.webm`,
     created_at: entry.createdAt,
   }
