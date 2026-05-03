@@ -82,7 +82,12 @@ export default function HomeView({ onOpenEntry }: Props) {
     try {
       await add(entry)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as Record<string, unknown>).message)
+            : JSON.stringify(err)
       setSaveError(`Save failed: ${msg}`)
       setSaving(false)
       return
